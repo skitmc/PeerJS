@@ -5,189 +5,275 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PeepJS</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f172a;
-            --sidebar-bg: rgba(30, 41, 59, 0.7);
-            --accent-color: #38bdf8;
-            --text-main: #f8fafc;
-            --text-dim: #94a3b8;
-            --msg-me: #0369a1;
-            --msg-them: #334155;
+            --bg-color: #0b0e14;
+            --sidebar-bg: rgba(23, 28, 41, 0.8);
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.3);
+            --text-main: #f1f5f9;
+            --text-dim: #64748b;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
-            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
             background-color: var(--bg-color); 
             color: var(--text-main);
             height: 100vh;
+            display: flex;
             overflow: hidden;
-            transition: background-color 0.5s ease;
         }
 
-        .app-wrapper { display: flex; height: 100vh; width: 100vw; }
+        /* --- ANIMATIONS --- */
+        @keyframes logoPulse {
+            0% { text-shadow: 0 0 0px var(--accent-glow); }
+            50% { text-shadow: 0 0 20px var(--accent-glow); transform: scale(1.05); }
+            100% { text-shadow: 0 0 0px var(--accent-glow); }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
 
         /* --- SIDEBAR --- */
         .sidebar {
-            width: 320px;
+            width: 300px;
             background: var(--sidebar-bg);
-            backdrop-filter: blur(12px);
-            border-right: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--glass-border);
             display: flex;
             flex-direction: column;
-            padding: 20px;
-            z-index: 10;
+            padding: 24px;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s;
+            position: relative;
+            z-index: 100;
         }
 
-        .logo { font-size: 1.5rem; font-weight: 800; color: var(--accent-color); margin-bottom: 25px; letter-spacing: -1px; }
+        .sidebar.hidden {
+            transform: translateX(-100%);
+            width: 0;
+            padding: 0;
+            margin: 0;
+            pointer-events: none;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .logo { 
+            font-size: 1.8rem; 
+            font-weight: 800; 
+            color: var(--accent); 
+            display: inline-block;
+            animation: logoPulse 3s infinite ease-in-out;
+        }
+
+        /* --- TOGGLE BUTTON --- */
+        .toggle-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 200;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        
+        /* Shift button when sidebar is open vs closed */
+        .sidebar-open .toggle-btn { left: 320px; }
 
         .profile-card {
-            background: rgba(255,255,255,0.05);
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 20px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 24px;
         }
 
         .profile-card input {
             background: transparent;
             border: none;
-            border-bottom: 1px solid var(--accent-color);
+            border-bottom: 2px solid var(--glass-border);
             color: white;
             width: 100%;
-            margin-bottom: 10px;
-            padding: 5px;
+            margin-bottom: 12px;
+            padding: 8px 0;
             outline: none;
+            font-weight: 600;
+            transition: 0.3s;
         }
+        .profile-card input:focus { border-color: var(--accent); }
 
-        .id-row { display: flex; justify-content: space-between; align-items: center; font-family: monospace; font-size: 1.1rem; }
-        .regen-btn { cursor: pointer; background: none; border: none; font-size: 1.2rem; filter: grayscale(1); transition: 0.3s; }
-        .regen-btn:hover { filter: grayscale(0); transform: rotate(90deg); }
-
-        .contact-list { flex: 1; overflow-y: auto; margin: 20px 0; }
-        .contact-item {
-            padding: 12px;
-            border-radius: 10px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: 0.2s;
-            border: 1px solid transparent;
-        }
-        .contact-item:hover { background: rgba(255,255,255,0.08); }
-        .contact-item.active { background: rgba(56, 189, 248, 0.2); border-color: var(--accent-color); }
-
-        .sidebar-footer { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }
-
-        /* --- CHAT AREA --- */
-        .chat-main { flex: 1; display: flex; flex-direction: column; background: radial-gradient(circle at top right, rgba(56,189,248,0.05), transparent); }
-        
-        .chat-header {
-            padding: 20px 30px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+        .id-badge {
+            background: rgba(0,0,0,0.3);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-family: monospace;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
+        .contact-list { flex: 1; overflow-y: auto; }
+        .contact-item {
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            animation: slideIn 0.4s ease-out;
+            border-left: 0px solid var(--accent);
+        }
+        .contact-item:hover { background: var(--glass); }
+        .contact-item.active { 
+            background: rgba(56, 189, 248, 0.1); 
+            border-left: 4px solid var(--accent);
+        }
+
+        /* --- CHAT MAIN --- */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: radial-gradient(circle at top right, rgba(56,189,248,0.03), transparent);
+        }
+
+        .chat-header {
+            padding: 24px 80px; /* Space for the toggle button */
+            border-bottom: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+        }
+
         #message-list {
             flex: 1;
-            padding: 30px;
+            padding: 40px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
         }
 
-        .msg { max-width: 70%; padding: 12px 16px; border-radius: 18px; line-height: 1.4; position: relative; }
-        .msg.me { align-self: flex-end; background: var(--msg-me); border-bottom-right-radius: 4px; }
-        .msg.them { align-self: flex-start; background: var(--msg-them); border-bottom-left-radius: 4px; }
-        .msg-info { font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; }
+        .msg { 
+            max-width: 60%; 
+            padding: 14px 18px; 
+            border-radius: 20px; 
+            line-height: 1.5; 
+            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .msg.me { align-self: flex-end; background: var(--accent); color: #000; font-weight: 500; border-bottom-right-radius: 4px; }
+        .msg.them { align-self: flex-start; background: #1e293b; border: 1px solid var(--glass-border); border-bottom-left-radius: 4px; }
 
-        .input-area { padding: 20px 30px; display: flex; gap: 15px; }
-        input[type="text"] {
+        .input-bar {
+            padding: 24px 40px;
+            display: flex;
+            gap: 12px;
+            background: linear-gradient(transparent, var(--bg-color));
+        }
+
+        input[type="text"]#chat-input {
             flex: 1;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            padding: 12px 20px;
-            border-radius: 25px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            padding: 14px 24px;
+            border-radius: 14px;
             color: white;
             outline: none;
+            transition: 0.3s;
         }
-        input[type="text"]:focus { border-color: var(--accent-color); }
+        input[type="text"]#chat-input:focus { border-color: var(--accent); background: rgba(255,255,255,0.06); }
 
-        button {
-            padding: 10px 20px;
-            border-radius: 25px;
-            border: none;
-            background: var(--accent-color);
+        .send-btn {
+            background: var(--accent);
             color: #000;
-            font-weight: 700;
+            border: none;
+            padding: 0 24px;
+            border-radius: 14px;
+            font-weight: 800;
             cursor: pointer;
             transition: 0.3s;
         }
-        button:hover { opacity: 0.9; transform: translateY(-1px); }
-        .nuke-btn { background: #ef4444; color: white; width: 100%; margin-top: 10px; border-radius: 8px; }
+        .send-btn:hover { transform: scale(1.05); box-shadow: 0 5px 15px var(--accent-glow); }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .nuke-btn { background: #ef4444; color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; margin-top: 10px; cursor: pointer; opacity: 0.6; }
+        .nuke-btn:hover { opacity: 1; }
     </style>
 </head>
-<body>
+<body class="sidebar-open">
 
-    <div class="app-wrapper" id="main-bg">
-        <div class="sidebar">
-            <div class="logo">PeepJS</div>
-            
-            <div class="profile-card">
-                <input type="text" id="user-name" placeholder="Set your name..." onchange="updateProfile()">
-                <div class="id-row">
-                    <span id="display-id">...</span>
-                    <button class="regen-btn" onclick="regenerateID()">🔄</button>
-                </div>
-            </div>
+    <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
 
-            <div class="input-area" style="padding:0; margin-bottom: 10px;">
-                <input type="text" id="friend-id-input" placeholder="Friend Code" style="border-radius: 8px;">
-                <button onclick="addNewChat()" style="border-radius: 8px;">Add</button>
-            </div>
-
-            <div class="contact-list" id="contacts"></div>
-
-            <div class="sidebar-footer">
-                <label style="font-size: 0.8rem; color: var(--text-dim);">Background</label>
-                <input type="color" id="bg-picker" onchange="changeBg(this.value)" style="width: 100%; height: 30px; border: none; background: none; cursor: pointer;">
-                <button class="nuke-btn" onclick="nukeData()">Delete All Chats</button>
+    <div class="sidebar" id="sidebar">
+        <div class="logo-container">
+            <span class="logo">PeepJS</span>
+        </div>
+        
+        <div class="profile-card">
+            <input type="text" id="user-name" placeholder="Who are you?" onchange="updateProfile()">
+            <div class="id-badge">
+                <span id="display-id">...</span>
+                <span onclick="regenerateID()" style="cursor:pointer">🔄</span>
             </div>
         </div>
 
-        <div class="chat-main">
-            <div class="chat-header">
-                <h3 id="current-chat-name">Welcome to PeepJS</h3>
-                <span id="status-dot" style="color: var(--text-dim); font-size: 0.8rem;">Select a friend to begin</span>
-            </div>
-            
-            <div id="message-list"></div>
+        <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+            <input type="text" id="friend-id-input" placeholder="Friend's ID" style="flex:1; background: var(--glass); border: 1px solid var(--glass-border); padding: 8px; border-radius: 8px; color: white; outline:none;">
+            <button onclick="addNewChat()" style="background: var(--accent); border:none; border-radius:8px; padding:0 12px; cursor:pointer;">+</button>
+        </div>
 
-            <div class="input-area">
-                <input type="text" id="chat-input" placeholder="Write something..." onkeypress="if(event.key==='Enter') sendMsg()">
-                <button onclick="sendMsg()">Send</button>
-            </div>
+        <div class="contact-list" id="contacts"></div>
+
+        <div style="padding-top: 20px;">
+            <input type="color" id="bg-picker" onchange="changeBg(this.value)" style="width: 100%; height: 35px; border-radius: 8px; border:none; background:none; cursor:pointer;">
+            <button class="nuke-btn" onclick="nukeData()">Nuke All Chats</button>
+        </div>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2 id="current-chat-name">PeepJS Dashboard</h2>
+            <p id="status-text" style="color: var(--text-dim); font-size: 0.9rem;">Ready for connection</p>
+        </div>
+        
+        <div id="message-list"></div>
+
+        <div class="input-bar">
+            <input type="text" id="chat-input" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMsg()">
+            <button class="send-btn" onclick="sendMsg()">SEND</button>
         </div>
     </div>
 
     <script>
-        let peer;
-        let conn;
-        let activeId = null;
-        
-        // Load data
-        let myName = localStorage.getItem('peep-name') || "Stranger";
-        let myId = localStorage.getItem('peep-id');
+        let peer, conn, activeId = null;
         let chats = JSON.parse(localStorage.getItem('peep-chats') || "{}");
+        let myName = localStorage.getItem('peep-name') || "Guest";
+        let myId = localStorage.getItem('peep-id');
 
         function init() {
-            // Generate short ID if needed
             const idToUse = myId || Math.random().toString(36).substring(2, 8).toUpperCase();
             peer = new Peer(idToUse);
 
@@ -199,13 +285,17 @@
             });
 
             peer.on('connection', (connection) => {
-                connection.on('data', (data) => {
-                    receiveData(connection.peer, data);
-                });
+                connection.on('data', (data) => receiveData(connection.peer, data));
             });
 
             document.getElementById('user-name').value = myName;
-            document.body.style.backgroundColor = localStorage.getItem('peep-bg') || "#0f172a";
+            document.body.style.backgroundColor = localStorage.getItem('peep-bg') || "#0b0e14";
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('hidden');
+            document.body.classList.toggle('sidebar-open');
         }
 
         function updateProfile() {
@@ -216,11 +306,9 @@
         function addNewChat() {
             const fId = document.getElementById('friend-id-input').value.trim().toUpperCase();
             if (!fId || fId === myId) return;
-            if (!chats[fId]) {
-                chats[fId] = { name: "Friend", messages: [] };
-                save();
-                renderSidebar();
-            }
+            if (!chats[fId]) chats[fId] = { name: "New Friend", messages: [] };
+            save();
+            renderSidebar();
             switchChat(fId);
             document.getElementById('friend-id-input').value = "";
         }
@@ -228,7 +316,8 @@
         function switchChat(id) {
             activeId = id;
             conn = peer.connect(id);
-            document.getElementById('current-chat-name').innerText = chats[id].name + " (" + id + ")";
+            document.getElementById('current-chat-name').innerText = chats[id].name;
+            document.getElementById('status-text').innerText = "Connected to " + id;
             renderSidebar();
             renderMessages();
         }
@@ -238,9 +327,7 @@
             if (!activeId || !input.value.trim()) return;
 
             const content = input.value;
-            if (conn && conn.open) {
-                conn.send({ sender: myName, text: content });
-            }
+            if (conn && conn.open) conn.send({ sender: myName, text: content });
 
             chats[activeId].messages.push({ from: "You", text: content });
             save();
@@ -273,18 +360,17 @@
             const list = document.getElementById('message-list');
             list.innerHTML = "";
             if (!activeId) return;
-
             chats[activeId].messages.forEach(m => {
                 const div = document.createElement('div');
                 div.className = `msg ${m.from === "You" ? 'me' : 'them'}`;
-                div.innerHTML = `<div class="msg-info">${m.from}</div>${m.text}`;
+                div.innerHTML = m.text;
                 list.appendChild(div);
             });
             list.scrollTop = list.scrollHeight;
         }
 
         function regenerateID() {
-            if(confirm("New code = New Identity. Disconnect?")) {
+            if(confirm("Regenerate ID? Current identity will be lost.")) {
                 localStorage.removeItem('peep-id');
                 location.reload();
             }
@@ -296,7 +382,7 @@
         }
 
         function nukeData() {
-            if(confirm("Delete all history?")) {
+            if(confirm("Permanently delete all chats?")) {
                 localStorage.clear();
                 location.reload();
             }
