@@ -3,44 +3,308 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PeerChat Pro</title>
-    <link rel="stylesheet" href="style.css">
+    <title>PeepJS</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --sidebar-bg: rgba(30, 41, 59, 0.7);
+            --accent-color: #38bdf8;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --msg-me: #0369a1;
+            --msg-them: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.5s ease;
+        }
+
+        .app-wrapper { display: flex; height: 100vh; width: 100vw; }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 320px;
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            z-index: 10;
+        }
+
+        .logo { font-size: 1.5rem; font-weight: 800; color: var(--accent-color); margin-bottom: 25px; letter-spacing: -1px; }
+
+        .profile-card {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .profile-card input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--accent-color);
+            color: white;
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 5px;
+            outline: none;
+        }
+
+        .id-row { display: flex; justify-content: space-between; align-items: center; font-family: monospace; font-size: 1.1rem; }
+        .regen-btn { cursor: pointer; background: none; border: none; font-size: 1.2rem; filter: grayscale(1); transition: 0.3s; }
+        .regen-btn:hover { filter: grayscale(0); transform: rotate(90deg); }
+
+        .contact-list { flex: 1; overflow-y: auto; margin: 20px 0; }
+        .contact-item {
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            border: 1px solid transparent;
+        }
+        .contact-item:hover { background: rgba(255,255,255,0.08); }
+        .contact-item.active { background: rgba(56, 189, 248, 0.2); border-color: var(--accent-color); }
+
+        .sidebar-footer { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }
+
+        /* --- CHAT AREA --- */
+        .chat-main { flex: 1; display: flex; flex-direction: column; background: radial-gradient(circle at top right, rgba(56,189,248,0.05), transparent); }
+        
+        .chat-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #message-list {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .msg { max-width: 70%; padding: 12px 16px; border-radius: 18px; line-height: 1.4; position: relative; }
+        .msg.me { align-self: flex-end; background: var(--msg-me); border-bottom-right-radius: 4px; }
+        .msg.them { align-self: flex-start; background: var(--msg-them); border-bottom-left-radius: 4px; }
+        .msg-info { font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; }
+
+        .input-area { padding: 20px 30px; display: flex; gap: 15px; }
+        input[type="text"] {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px 20px;
+            border-radius: 25px;
+            color: white;
+            outline: none;
+        }
+        input[type="text"]:focus { border-color: var(--accent-color); }
+
+        button {
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: none;
+            background: var(--accent-color);
+            color: #000;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        .nuke-btn { background: #ef4444; color: white; width: 100%; margin-top: 10px; border-radius: 8px; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+    </style>
 </head>
 <body>
-    <div class="app-container" id="app-bg">
+
+    <div class="app-wrapper" id="main-bg">
         <div class="sidebar">
-            <div class="profile-section">
-                <input type="text" id="user-name" placeholder="Your Name" onchange="saveProfile()">
-                <div class="my-code-row">
-                    <span id="my-id">Generating...</span>
-                    <button onclick="regenerateID()" title="Regenerate Code">🔄</button>
+            <div class="logo">PeepJS</div>
+            
+            <div class="profile-card">
+                <input type="text" id="user-name" placeholder="Set your name..." onchange="updateProfile()">
+                <div class="id-row">
+                    <span id="display-id">...</span>
+                    <button class="regen-btn" onclick="regenerateID()">🔄</button>
                 </div>
             </div>
 
-            <div class="actions">
-                <input type="text" id="join-id" placeholder="Friend's Code">
-                <button onclick="connectToPeer()">+ Add Chat</button>
+            <div class="input-area" style="padding:0; margin-bottom: 10px;">
+                <input type="text" id="friend-id-input" placeholder="Friend Code" style="border-radius: 8px;">
+                <button onclick="addNewChat()" style="border-radius: 8px;">Add</button>
             </div>
 
-            <div id="contact-list" class="contact-list">
-                </div>
+            <div class="contact-list" id="contacts"></div>
 
-            <div class="settings">
-                <input type="color" id="bg-color" onchange="updateBackground(this.value)">
-                <button onclick="clearAllData()" class="danger-btn">Nuke All Chats</button>
+            <div class="sidebar-footer">
+                <label style="font-size: 0.8rem; color: var(--text-dim);">Background</label>
+                <input type="color" id="bg-picker" onchange="changeBg(this.value)" style="width: 100%; height: 30px; border: none; background: none; cursor: pointer;">
+                <button class="nuke-btn" onclick="nukeData()">Delete All Chats</button>
             </div>
         </div>
 
-        <div class="chat-area">
-            <div id="chat-header">Select a chat to start</div>
-            <div id="message-display"></div>
-            <div class="input-row">
-                <input type="text" id="msg-input" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMessage()">
-                <button onclick="sendMessage()">Send</button>
+        <div class="chat-main">
+            <div class="chat-header">
+                <h3 id="current-chat-name">Welcome to PeepJS</h3>
+                <span id="status-dot" style="color: var(--text-dim); font-size: 0.8rem;">Select a friend to begin</span>
+            </div>
+            
+            <div id="message-list"></div>
+
+            <div class="input-area">
+                <input type="text" id="chat-input" placeholder="Write something..." onkeypress="if(event.key==='Enter') sendMsg()">
+                <button onclick="sendMsg()">Send</button>
             </div>
         </div>
     </div>
-    <script src="index.js"></script>
+
+    <script>
+        let peer;
+        let conn;
+        let activeId = null;
+        
+        // Load data
+        let myName = localStorage.getItem('peep-name') || "Stranger";
+        let myId = localStorage.getItem('peep-id');
+        let chats = JSON.parse(localStorage.getItem('peep-chats') || "{}");
+
+        function init() {
+            // Generate short ID if needed
+            const idToUse = myId || Math.random().toString(36).substring(2, 8).toUpperCase();
+            peer = new Peer(idToUse);
+
+            peer.on('open', (id) => {
+                myId = id;
+                localStorage.setItem('peep-id', id);
+                document.getElementById('display-id').innerText = id;
+                renderSidebar();
+            });
+
+            peer.on('connection', (connection) => {
+                connection.on('data', (data) => {
+                    receiveData(connection.peer, data);
+                });
+            });
+
+            document.getElementById('user-name').value = myName;
+            document.body.style.backgroundColor = localStorage.getItem('peep-bg') || "#0f172a";
+        }
+
+        function updateProfile() {
+            myName = document.getElementById('user-name').value;
+            localStorage.setItem('peep-name', myName);
+        }
+
+        function addNewChat() {
+            const fId = document.getElementById('friend-id-input').value.trim().toUpperCase();
+            if (!fId || fId === myId) return;
+            if (!chats[fId]) {
+                chats[fId] = { name: "Friend", messages: [] };
+                save();
+                renderSidebar();
+            }
+            switchChat(fId);
+            document.getElementById('friend-id-input').value = "";
+        }
+
+        function switchChat(id) {
+            activeId = id;
+            conn = peer.connect(id);
+            document.getElementById('current-chat-name').innerText = chats[id].name + " (" + id + ")";
+            renderSidebar();
+            renderMessages();
+        }
+
+        function sendMsg() {
+            const input = document.getElementById('chat-input');
+            if (!activeId || !input.value.trim()) return;
+
+            const content = input.value;
+            if (conn && conn.open) {
+                conn.send({ sender: myName, text: content });
+            }
+
+            chats[activeId].messages.push({ from: "You", text: content });
+            save();
+            renderMessages();
+            input.value = "";
+        }
+
+        function receiveData(id, data) {
+            if (!chats[id]) chats[id] = { name: data.sender, messages: [] };
+            chats[id].name = data.sender;
+            chats[id].messages.push({ from: data.sender, text: data.text });
+            save();
+            renderSidebar();
+            if (activeId === id) renderMessages();
+        }
+
+        function renderSidebar() {
+            const container = document.getElementById('contacts');
+            container.innerHTML = "";
+            Object.keys(chats).forEach(id => {
+                const item = document.createElement('div');
+                item.className = `contact-item ${activeId === id ? 'active' : ''}`;
+                item.innerHTML = `<strong>${chats[id].name}</strong><br><small style="color:var(--text-dim)">${id}</small>`;
+                item.onclick = () => switchChat(id);
+                container.appendChild(item);
+            });
+        }
+
+        function renderMessages() {
+            const list = document.getElementById('message-list');
+            list.innerHTML = "";
+            if (!activeId) return;
+
+            chats[activeId].messages.forEach(m => {
+                const div = document.createElement('div');
+                div.className = `msg ${m.from === "You" ? 'me' : 'them'}`;
+                div.innerHTML = `<div class="msg-info">${m.from}</div>${m.text}`;
+                list.appendChild(div);
+            });
+            list.scrollTop = list.scrollHeight;
+        }
+
+        function regenerateID() {
+            if(confirm("New code = New Identity. Disconnect?")) {
+                localStorage.removeItem('peep-id');
+                location.reload();
+            }
+        }
+
+        function changeBg(color) {
+            document.body.style.backgroundColor = color;
+            localStorage.setItem('peep-bg', color);
+        }
+
+        function nukeData() {
+            if(confirm("Delete all history?")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        function save() { localStorage.setItem('peep-chats', JSON.stringify(chats)); }
+
+        init();
+    </script>
 </body>
 </html>
